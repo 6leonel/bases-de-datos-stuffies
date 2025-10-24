@@ -1,5 +1,5 @@
 -- =============================================
--- ⭐Stuffies (HR)
+-- ⭐Stuffies (HR) 
 -- =============================================
 
 SET SERVEROUTPUT ON;
@@ -10,7 +10,7 @@ BEGIN
     -- Encabezado principal
     DBMS_OUTPUT.PUT_LINE(CHR(10));
     DBMS_OUTPUT.PUT_LINE('╔══════════════════════════════════════════════════════════════════════════════════════════════════════╗');
-    DBMS_OUTPUT.PUT_LINE('║                                    ⭐ SISTEMA STUFFIES - DEMOSTRACIÓN COMPLETA                      ║');
+    DBMS_OUTPUT.PUT_LINE('║                                    ⭐ SISTEMA STUFFIES - DEMOSTRACIÓN COMPLETA                      ║'); 
     DBMS_OUTPUT.PUT_LINE('╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝');
     DBMS_OUTPUT.PUT_LINE(CHR(10));
 
@@ -193,7 +193,7 @@ BEGIN
 
     DBMS_OUTPUT.PUT_LINE(CHR(10));
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN PROCEDIMIENTOS COMPLETADA - IE2.1.1 CUMPLIDO');
+    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN PROCEDIMIENTOS COMPLETADA - IE2.1.1');
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
 
     -- =============================================
@@ -286,7 +286,7 @@ BEGIN
 
     DBMS_OUTPUT.PUT_LINE(CHR(10));
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN FUNCIONES COMPLETADA - IE2.1.3 CUMPLIDO');
+    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN FUNCIONES COMPLETADA - IE2.1.3');
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
 
     -- =============================================
@@ -343,7 +343,7 @@ BEGIN
 
     DBMS_OUTPUT.PUT_LINE(CHR(10));
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN PACKAGES COMPLETADA - IE2.2.1 CUMPLIDO');
+    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN PACKAGES COMPLETADA - IE2.2.1');
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
 
     -- =============================================
@@ -464,7 +464,7 @@ BEGIN
 
     DBMS_OUTPUT.PUT_LINE(CHR(10));
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN TRIGGERS COMPLETADA - IE2.3.1 CUMPLIDO');
+    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN TRIGGERS COMPLETADA - IE2.3.1');
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
 
     -- =============================================
@@ -518,7 +518,7 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE(CHR(10));
     DBMS_OUTPUT.PUT_LINE('╔══════════════════════════════════════════════════════════════════════════════════════════════════════╗');
     DBMS_OUTPUT.PUT_LINE('║                                   🎉 DEMOSTRACIÓN COMPLETADA EXITOSAMENTE                           ║');
-    DBMS_OUTPUT.PUT_LINE('║                                 🧸 SISTEMA STUFFIES - ERP AVANZADO                                 ║');
+    DBMS_OUTPUT.PUT_LINE('║                                 ⭐ SISTEMA STUFFIES - ERP AVANZADO                                 ║');
     DBMS_OUTPUT.PUT_LINE('╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝');
     DBMS_OUTPUT.PUT_LINE(CHR(10));
 
