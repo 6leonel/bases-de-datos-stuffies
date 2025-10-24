@@ -347,7 +347,7 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
 
     -- =============================================
-    -- 4. SECCIÓN TRIGGERS (IE2.3.1) - VERSIÓN CORREGIDA
+    -- 4. SECCIÓN TRIGGERS (IE2.3.1)
     -- =============================================
     DBMS_OUTPUT.PUT_LINE(CHR(10));
     DBMS_OUTPUT.PUT_LINE('4. ⚡ TRIGGERS - IE2.3.1');
