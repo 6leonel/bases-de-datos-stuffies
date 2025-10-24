@@ -1,10 +1,392 @@
 -- =============================================
--- ⭐Stuffies (HR) 
+-- ⭐Stuffies (HR) - CÓDIGO COMPLETO CORREGIDO
 -- =============================================
 
 SET SERVEROUTPUT ON;
 SET LINESIZE 200;
 SET PAGESIZE 1000;
+
+-- Primero creamos todas las tablas y objetos necesarios
+BEGIN
+    -- Crear tablas si no existen
+    EXECUTE IMMEDIATE '
+        CREATE TABLE stuffies_productos (
+            producto_id NUMBER PRIMARY KEY,
+            nombre VARCHAR2(100) NOT NULL,
+            precio NUMBER(10,2) NOT NULL,
+            stock NUMBER DEFAULT 0,
+            destacado NUMBER(1) DEFAULT 0
+        )';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE '
+        CREATE TABLE stuffies_clientes (
+            cliente_id NUMBER PRIMARY KEY,
+            nombre VARCHAR2(100) NOT NULL,
+            email VARCHAR2(100)
+        )';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE '
+        CREATE TABLE stuffies_carrito (
+            carrito_id NUMBER PRIMARY KEY,
+            cliente_id NUMBER,
+            producto_id NUMBER,
+            talla VARCHAR2(10),
+            cantidad NUMBER DEFAULT 1,
+            fecha_agregado DATE DEFAULT SYSDATE
+        )';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE '
+        CREATE TABLE stuffies_pedidos (
+            pedido_id NUMBER PRIMARY KEY,
+            cliente_id NUMBER,
+            fecha_pedido DATE DEFAULT SYSDATE,
+            estado VARCHAR2(20) DEFAULT ''PENDIENTE'',
+            tipo_entrega VARCHAR2(20)
+        )';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE '
+        CREATE TABLE stuffies_detalle_pedido (
+            detalle_id NUMBER PRIMARY KEY,
+            pedido_id NUMBER,
+            producto_id NUMBER,
+            cantidad NUMBER,
+            precio_unitario NUMBER(10,2)
+        )';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE '
+        CREATE TABLE stuffies_auditoria_precios (
+            auditoria_id NUMBER PRIMARY KEY,
+            producto_id NUMBER,
+            precio_anterior NUMBER(10,2),
+            precio_nuevo NUMBER(10,2),
+            usuario VARCHAR2(50),
+            fecha_cambio DATE DEFAULT SYSDATE
+        )';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+-- Crear secuencias
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_productos START WITH 1 INCREMENT BY 1';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_clientes START WITH 1 INCREMENT BY 1';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_carrito START WITH 1 INCREMENT BY 1';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_pedidos START WITH 1 INCREMENT BY 1';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_detalle START WITH 1 INCREMENT BY 1';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_auditoria START WITH 1 INCREMENT BY 1';
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END;
+/
+
+-- Insertar datos de ejemplo
+BEGIN
+    -- Limpiar datos existentes
+    DELETE FROM stuffies_detalle_pedido;
+    DELETE FROM stuffies_pedidos;
+    DELETE FROM stuffies_carrito;
+    DELETE FROM stuffies_auditoria_precios;
+    DELETE FROM stuffies_productos;
+    DELETE FROM stuffies_clientes;
+    
+    -- Insertar clientes
+    INSERT INTO stuffies_clientes (cliente_id, nombre, email) VALUES (1, 'Juan Pérez', 'juan@email.com');
+    INSERT INTO stuffies_clientes (cliente_id, nombre, email) VALUES (2, 'María García', 'maria@email.com');
+    INSERT INTO stuffies_clientes (cliente_id, nombre, email) VALUES (3, 'Carlos López', 'carlos@email.com');
+    
+    -- Insertar productos
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (1, 'Peluche Oso Grande', 29990, 15, 1);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (2, 'Peluche Conejo', 15990, 5, 0);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (3, 'Peluche Elefante', 22990, 25, 1);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (4, 'Peluche Dinosaurio', 18990, 8, 0);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (5, 'Peluche Panda', 24990, 60, 1);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (6, 'Peluche Unicornio', 27990, 3, 0);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (7, 'Peluche Perro', 19990, 45, 1);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (8, 'Peluche Gato', 21990, 12, 1);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (9, 'Peluche León', 23990, 7, 0);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (10, 'Peluche Jirafa', 26990, 55, 1);
+    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (11, 'Peluche Pingüino', 17990, 20, 1);
+    
+    COMMIT;
+END;
+/
+
+-- =============================================
+-- CREACIÓN DE OBJETOS PL/SQL
+-- =============================================
+
+-- Procedimiento sin parámetros
+CREATE OR REPLACE PROCEDURE sp_ActualizarStockBajo AS
+BEGIN
+    -- Actualizar productos con stock bajo (quitar de destacados)
+    UPDATE stuffies_productos 
+    SET destacado = 0 
+    WHERE stock < 10 AND destacado = 1;
+    
+    -- Actualizar productos con stock alto (agregar a destacados)
+    UPDATE stuffies_productos 
+    SET destacado = 1 
+    WHERE stock >= 50 AND destacado = 0;
+    
+    COMMIT;
+END sp_ActualizarStockBajo;
+/
+
+-- Procedimiento para agregar al carrito
+CREATE OR REPLACE PROCEDURE sp_AgregarAlCarrito(
+    p_cliente_id IN NUMBER,
+    p_producto_id IN NUMBER,
+    p_talla IN VARCHAR2,
+    p_cantidad IN NUMBER
+) AS
+BEGIN
+    INSERT INTO stuffies_carrito (carrito_id, cliente_id, producto_id, talla, cantidad)
+    VALUES (seq_carrito.NEXTVAL, p_cliente_id, p_producto_id, p_talla, p_cantidad);
+    
+    COMMIT;
+END sp_AgregarAlCarrito;
+/
+
+-- Procedimiento para procesar pedido masivo
+CREATE OR REPLACE PROCEDURE sp_ProcesarPedidoMasivo(
+    p_cliente_id IN NUMBER,
+    p_tipo_entrega IN VARCHAR2
+) AS
+    v_pedido_id NUMBER;
+    CURSOR c_carrito IS
+        SELECT producto_id, cantidad, talla
+        FROM stuffies_carrito
+        WHERE cliente_id = p_cliente_id;
+BEGIN
+    -- Crear pedido
+    SELECT seq_pedidos.NEXTVAL INTO v_pedido_id FROM DUAL;
+    
+    INSERT INTO stuffies_pedidos (pedido_id, cliente_id, tipo_entrega)
+    VALUES (v_pedido_id, p_cliente_id, p_tipo_entrega);
+    
+    -- Procesar items del carrito
+    FOR item IN c_carrito LOOP
+        INSERT INTO stuffies_detalle_pedido (detalle_id, pedido_id, producto_id, cantidad, precio_unitario)
+        VALUES (seq_detalle.NEXTVAL, v_pedido_id, item.producto_id, item.cantidad, 
+               (SELECT precio FROM stuffies_productos WHERE producto_id = item.producto_id));
+    END LOOP;
+    
+    -- Limpiar carrito
+    DELETE FROM stuffies_carrito WHERE cliente_id = p_cliente_id;
+    
+    COMMIT;
+END sp_ProcesarPedidoMasivo;
+/
+
+-- Función para calcular total del pedido
+CREATE OR REPLACE FUNCTION fn_CalcularTotalPedido(p_pedido_id IN NUMBER) RETURN NUMBER AS
+    v_total NUMBER := 0;
+BEGIN
+    SELECT NVL(SUM(cantidad * precio_unitario), 0)
+    INTO v_total
+    FROM stuffies_detalle_pedido
+    WHERE pedido_id = p_pedido_id;
+    
+    RETURN v_total;
+END fn_CalcularTotalPedido;
+/
+
+-- Función sin parámetros para contar productos destacados
+CREATE OR REPLACE FUNCTION fn_ContarProductosDestacados RETURN NUMBER AS
+    v_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_count
+    FROM stuffies_productos
+    WHERE destacado = 1;
+    
+    RETURN v_count;
+END fn_ContarProductosDestacados;
+/
+
+-- Función para obtener información del cliente
+CREATE OR REPLACE FUNCTION fn_ObtenerInfoCliente(p_cliente_id IN NUMBER) RETURN VARCHAR2 AS
+    v_info VARCHAR2(500);
+    v_nombre VARCHAR2(100);
+    v_email VARCHAR2(100);
+BEGIN
+    SELECT nombre, email INTO v_nombre, v_email
+    FROM stuffies_clientes
+    WHERE cliente_id = p_cliente_id;
+    
+    v_info := 'Cliente: ' || v_nombre || ' | Email: ' || v_email;
+    RETURN v_info;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'Cliente no encontrado';
+END fn_ObtenerInfoCliente;
+/
+
+-- Función para obtener resumen del carrito
+CREATE OR REPLACE FUNCTION fn_ObtenerResumenCarrito(p_cliente_id IN NUMBER) RETURN VARCHAR2 AS
+    v_items NUMBER;
+    v_total NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_items
+    FROM stuffies_carrito
+    WHERE cliente_id = p_cliente_id;
+    
+    SELECT NVL(SUM(c.cantidad * p.precio), 0) INTO v_total
+    FROM stuffies_carrito c
+    JOIN stuffies_productos p ON c.producto_id = p.producto_id
+    WHERE c.cliente_id = p_cliente_id;
+    
+    RETURN v_items || ' items - Total: $' || v_total;
+END fn_ObtenerResumenCarrito;
+/
+
+-- Package
+CREATE OR REPLACE PACKAGE pkg_GestionStock AS
+    PROCEDURE ActualizarStockProducto(p_producto_id IN NUMBER, p_cantidad IN NUMBER);
+    FUNCTION ObtenerStockDisponible(p_producto_id IN NUMBER) RETURN NUMBER;
+    FUNCTION ObtenerProductosStockBajo RETURN SYS_REFCURSOR;
+END pkg_GestionStock;
+/
+
+CREATE OR REPLACE PACKAGE BODY pkg_GestionStock AS
+    PROCEDURE GenerarAlertaStock(p_producto_id IN NUMBER, p_stock_actual IN NUMBER) IS
+    BEGIN
+        DBMS_OUTPUT.PUT_LINE('ALERTA: Producto ID ' || p_producto_id || ' tiene stock bajo: ' || p_stock_actual);
+    END GenerarAlertaStock;
+    
+    PROCEDURE ActualizarStockProducto(p_producto_id IN NUMBER, p_cantidad IN NUMBER) IS
+        v_stock_actual NUMBER;
+    BEGIN
+        UPDATE stuffies_productos 
+        SET stock = stock + p_cantidad 
+        WHERE producto_id = p_producto_id;
+        
+        SELECT stock INTO v_stock_actual
+        FROM stuffies_productos
+        WHERE producto_id = p_producto_id;
+        
+        IF v_stock_actual < 5 THEN
+            GenerarAlertaStock(p_producto_id, v_stock_actual);
+        END IF;
+        
+        COMMIT;
+    END ActualizarStockProducto;
+    
+    FUNCTION ObtenerStockDisponible(p_producto_id IN NUMBER) RETURN NUMBER IS
+        v_stock NUMBER;
+    BEGIN
+        SELECT stock INTO v_stock
+        FROM stuffies_productos
+        WHERE producto_id = p_producto_id;
+        
+        RETURN v_stock;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN 0;
+    END ObtenerStockDisponible;
+    
+    FUNCTION ObtenerProductosStockBajo RETURN SYS_REFCURSOR IS
+        v_cursor SYS_REFCURSOR;
+    BEGIN
+        OPEN v_cursor FOR
+            SELECT producto_id, nombre, stock
+            FROM stuffies_productos
+            WHERE stock < 10
+            ORDER BY stock ASC;
+            
+        RETURN v_cursor;
+    END ObtenerProductosStockBajo;
+END pkg_GestionStock;
+/
+
+-- Triggers
+CREATE OR REPLACE TRIGGER trg_AuditoriaPrecios
+    BEFORE UPDATE OF precio ON stuffies_productos
+    FOR EACH ROW
+BEGIN
+    IF :OLD.precio != :NEW.precio THEN
+        INSERT INTO stuffies_auditoria_precios (
+            auditoria_id, producto_id, precio_anterior, precio_nuevo, usuario
+        ) VALUES (
+            seq_auditoria.NEXTVAL, :OLD.producto_id, :OLD.precio, :NEW.precio, USER
+        );
+    END IF;
+END trg_AuditoriaPrecios;
+/
+
+CREATE OR REPLACE TRIGGER trg_ValidarHorarioPedidos
+    BEFORE INSERT ON stuffies_pedidos
+DECLARE
+    v_hora_actual NUMBER;
+BEGIN
+    v_hora_actual := TO_NUMBER(TO_CHAR(SYSDATE, 'HH24'));
+    
+    IF v_hora_actual < 8 OR v_hora_actual >= 20 THEN
+        RAISE_APPLICATION_ERROR(-20001, 
+            'Los pedidos solo se pueden realizar entre las 08:00 y 20:00 horas. Hora actual: ' || 
+            TO_CHAR(SYSDATE, 'HH24:MI'));
+    END IF;
+END trg_ValidarHorarioPedidos;
+/
+
+-- =============================================
+-- DEMOSTRACIÓN PRINCIPAL (CÓDIGO ORIGINAL CORREGIDO)
+-- =============================================
 
 BEGIN
     -- Encabezado principal
