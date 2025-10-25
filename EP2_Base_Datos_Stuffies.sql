@@ -4,6 +4,17 @@ SET PAGESIZE 1000;
 SET DEFINE OFF;
 
 -------------------------------------------------------------------------------
+-- ╔═══════════════════════════════════════════════════════════════════════╗
+-- ║                    Parte 1 — ESQUEMA & IDP                       ║
+-- ║  (Tablas idempotentes + compatibilidad STOCK_ID + secuencia/trigger)  ║
+-- ╚═══════════════════════════════════════════════════════════════════════╝
+-------------------------------------------------------------------------------
+PROMPT
+PROMPT =====================  INTEGRANTE 1 — ESQUEMA & IDP  =====================
+PROMPT Objetivo: Tablas base idempotentes, espejo PRODUCTO y compatibilidad STOCK_ID.
+PROMPT ==========================================================================
+
+-------------------------------------------------------------------------------
 -- TABLAS (idempotentes)
 -------------------------------------------------------------------------------
 BEGIN
@@ -98,6 +109,19 @@ BEGIN
   ]';
 END;
 /
+-- >>> FIN BLOQUE INTEGRANTE 1 <<<
+
+
+-------------------------------------------------------------------------------
+-- ╔═══════════════════════════════════════════════════════════════════════╗
+-- ║                  Parte 2 — VISTAS & PACKAGE                      ║
+-- ║  (Vistas orden tallas/CSV/Reportes + Package PKG_GESTION_STOCK)      ║
+-- ╚═══════════════════════════════════════════════════════════════════════╝
+-------------------------------------------------------------------------------
+PROMPT
+PROMPT =======================  INTEGRANTE 2 — VISTAS & PKG  ====================
+PROMPT Objetivo: Vistas de catálogo y reportes + Package para refrescar stock.
+PROMPT ==========================================================================
 
 -------------------------------------------------------------------------------
 -- VISTAS
@@ -225,6 +249,19 @@ CREATE OR REPLACE PACKAGE BODY hr.pkg_gestion_stock AS
   END;
 END pkg_gestion_stock;
 /
+-- >>> FIN BLOQUE INTEGRANTE 2 <<<
+
+
+-------------------------------------------------------------------------------
+-- ╔═══════════════════════════════════════════════════════════════════════╗
+-- ║            Parte 3 — TRIGGER & CARGA (MERGE) & REPORTES          ║
+-- ║ (Trigger compuesto, upsert de datos, refresco y consultas de reporte) ║
+-- ╚═══════════════════════════════════════════════════════════════════════╝
+-------------------------------------------------------------------------------
+PROMPT
+PROMPT ==================  INTEGRANTE 3 — TRIGGER & CARGA & REPORTES  ===========
+PROMPT Objetivo: Trigger compuesto (evita mutating + alerta), MERGE y reportes.
+PROMPT ==========================================================================
 
 -------------------------------------------------------------------------------
 -- TRIGGER COMPUESTO (no hace COMMIT, evita "tabla mutando")
@@ -443,4 +480,5 @@ SELECT * FROM hr.vw_producto_tallas_csv
 WHERE id_producto BETWEEN 1 AND 11
 ORDER BY id_producto;
 
+-- >>> FIN BLOQUE INTEGRANTE 3 <<<
 SET DEFINE ON;
