@@ -109,7 +109,7 @@ BEGIN
   ]';
 END;
 /
--- >>> FIN BLOQUE INTEGRANTE 1 <<<
+-- >>> FIN BLOQUE Parte 1 <<<
 
 
 -------------------------------------------------------------------------------
@@ -249,7 +249,7 @@ CREATE OR REPLACE PACKAGE BODY hr.pkg_gestion_stock AS
   END;
 END pkg_gestion_stock;
 /
--- >>> FIN BLOQUE INTEGRANTE 2 <<<
+-- >>> FIN BLOQUE Parte 2 <<<
 
 
 -------------------------------------------------------------------------------
@@ -480,5 +480,5 @@ SELECT * FROM hr.vw_producto_tallas_csv
 WHERE id_producto BETWEEN 1 AND 11
 ORDER BY id_producto;
 
--- >>> FIN BLOQUE INTEGRANTE 3 <<<
+-- >>> FIN BLOQUE Parte 3 <<<
 SET DEFINE ON;
