@@ -1,921 +1,446 @@
--- =============================================
--- ⭐Stuffies (HR) - CÓDIGO COMPLETO CORREGIDO
--- =============================================
-
 SET SERVEROUTPUT ON;
-SET LINESIZE 200;
+SET LINESIZE 220;
 SET PAGESIZE 1000;
+SET DEFINE OFF;
 
--- Primero creamos todas las tablas y objetos necesarios
+-------------------------------------------------------------------------------
+-- TABLAS (idempotentes)
+-------------------------------------------------------------------------------
 BEGIN
-    -- Crear tablas si no existen
-    EXECUTE IMMEDIATE '
-        CREATE TABLE stuffies_productos (
-            producto_id NUMBER PRIMARY KEY,
-            nombre VARCHAR2(100) NOT NULL,
-            precio NUMBER(10,2) NOT NULL,
-            stock NUMBER DEFAULT 0,
-            destacado NUMBER(1) DEFAULT 0
-        )';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
-BEGIN
-    EXECUTE IMMEDIATE '
-        CREATE TABLE stuffies_clientes (
-            cliente_id NUMBER PRIMARY KEY,
-            nombre VARCHAR2(100) NOT NULL,
-            email VARCHAR2(100)
-        )';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
+  EXECUTE IMMEDIATE q'[
+    CREATE TABLE hr.stuffies_productos (
+      producto_id   NUMBER         PRIMARY KEY,
+      nombre        VARCHAR2(200)  NOT NULL,
+      precio        NUMBER(10,2)   NOT NULL,
+      categoria     VARCHAR2(50),
+      imagen        VARCHAR2(1000),
+      imagen_hover  VARCHAR2(1000),
+      descripcion   VARCHAR2(1000),
+      destacado     NUMBER(1)      DEFAULT 0,
+      stock         NUMBER         DEFAULT 0
+    )
+  ]';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
 /
 
 BEGIN
-    EXECUTE IMMEDIATE '
-        CREATE TABLE stuffies_carrito (
-            carrito_id NUMBER PRIMARY KEY,
-            cliente_id NUMBER,
-            producto_id NUMBER,
-            talla VARCHAR2(10),
-            cantidad NUMBER DEFAULT 1,
-            fecha_agregado DATE DEFAULT SYSDATE
-        )';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
+  EXECUTE IMMEDIATE q'[
+    CREATE TABLE hr.stuffies_stock_talla (
+      producto_id NUMBER       NOT NULL,
+      talla       VARCHAR2(10) NOT NULL,
+      stock       NUMBER       DEFAULT 0,
+      CONSTRAINT pk_sst PRIMARY KEY (producto_id, talla),
+      CONSTRAINT fk_sst_prod FOREIGN KEY (producto_id)
+        REFERENCES hr.stuffies_productos(producto_id)
+    )
+  ]';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
 /
 
+-- Espejo simple para reportes
 BEGIN
-    EXECUTE IMMEDIATE '
-        CREATE TABLE stuffies_pedidos (
-            pedido_id NUMBER PRIMARY KEY,
-            cliente_id NUMBER,
-            fecha_pedido DATE DEFAULT SYSDATE,
-            estado VARCHAR2(20) DEFAULT ''PENDIENTE'',
-            tipo_entrega VARCHAR2(20)
-        )';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
+  EXECUTE IMMEDIATE q'[
+    CREATE TABLE hr.producto (
+      id_producto NUMBER         PRIMARY KEY,
+      nombre      VARCHAR2(200)  NOT NULL,
+      precio      NUMBER(10,2)   NOT NULL,
+      stock       NUMBER         DEFAULT 0
+    )
+  ]';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
 /
 
+-- Opcional: notificaciones (si existe, el trigger insertará alertas)
 BEGIN
-    EXECUTE IMMEDIATE '
-        CREATE TABLE stuffies_detalle_pedido (
-            detalle_id NUMBER PRIMARY KEY,
-            pedido_id NUMBER,
-            producto_id NUMBER,
-            cantidad NUMBER,
-            precio_unitario NUMBER(10,2)
-        )';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
+  EXECUTE IMMEDIATE q'[
+    CREATE TABLE hr.stuffies_notificaciones (
+      notificacion_id    NUMBER       PRIMARY KEY,
+      cliente_id         NUMBER       NULL,
+      mensaje            VARCHAR2(400),
+      tipo               VARCHAR2(50),
+      fecha_notificacion DATE         DEFAULT SYSDATE,
+      leida              CHAR(1)      DEFAULT 'N'
+    )
+  ]';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;
 /
 
-BEGIN
-    EXECUTE IMMEDIATE '
-        CREATE TABLE stuffies_auditoria_precios (
-            auditoria_id NUMBER PRIMARY KEY,
-            producto_id NUMBER,
-            precio_anterior NUMBER(10,2),
-            precio_nuevo NUMBER(10,2),
-            usuario VARCHAR2(50),
-            fecha_cambio DATE DEFAULT SYSDATE
-        )';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
--- Crear secuencias
-BEGIN
-    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_productos START WITH 1 INCREMENT BY 1';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
-BEGIN
-    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_clientes START WITH 1 INCREMENT BY 1';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
-BEGIN
-    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_carrito START WITH 1 INCREMENT BY 1';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
-BEGIN
-    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_pedidos START WITH 1 INCREMENT BY 1';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
-BEGIN
-    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_detalle START WITH 1 INCREMENT BY 1';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
-BEGIN
-    EXECUTE IMMEDIATE 'CREATE SEQUENCE seq_auditoria START WITH 1 INCREMENT BY 1';
-EXCEPTION
-    WHEN OTHERS THEN NULL;
-END;
-/
-
--- Insertar datos de ejemplo
-BEGIN
-    -- Limpiar datos existentes
-    DELETE FROM stuffies_detalle_pedido;
-    DELETE FROM stuffies_pedidos;
-    DELETE FROM stuffies_carrito;
-    DELETE FROM stuffies_auditoria_precios;
-    DELETE FROM stuffies_productos;
-    DELETE FROM stuffies_clientes;
-    
-    -- Insertar clientes
-    INSERT INTO stuffies_clientes (cliente_id, nombre, email) VALUES (1, 'Juan Pérez', 'juan@email.com');
-    INSERT INTO stuffies_clientes (cliente_id, nombre, email) VALUES (2, 'María García', 'maria@email.com');
-    INSERT INTO stuffies_clientes (cliente_id, nombre, email) VALUES (3, 'Carlos López', 'carlos@email.com');
-    
-    -- Insertar productos
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (1, 'Peluche Oso Grande', 29990, 15, 1);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (2, 'Peluche Conejo', 15990, 5, 0);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (3, 'Peluche Elefante', 22990, 25, 1);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (4, 'Peluche Dinosaurio', 18990, 8, 0);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (5, 'Peluche Panda', 24990, 60, 1);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (6, 'Peluche Unicornio', 27990, 3, 0);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (7, 'Peluche Perro', 19990, 45, 1);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (8, 'Peluche Gato', 21990, 12, 1);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (9, 'Peluche León', 23990, 7, 0);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (10, 'Peluche Jirafa', 26990, 55, 1);
-    INSERT INTO stuffies_productos (producto_id, nombre, precio, stock, destacado) VALUES (11, 'Peluche Pingüino', 17990, 20, 1);
-    
-    COMMIT;
-END;
-/
-
--- =============================================
--- CREACIÓN DE OBJETOS PL/SQL
--- =============================================
-
--- Procedimiento sin parámetros
-CREATE OR REPLACE PROCEDURE sp_ActualizarStockBajo AS
-BEGIN
-    -- Actualizar productos con stock bajo (quitar de destacados)
-    UPDATE stuffies_productos 
-    SET destacado = 0 
-    WHERE stock < 10 AND destacado = 1;
-    
-    -- Actualizar productos con stock alto (agregar a destacados)
-    UPDATE stuffies_productos 
-    SET destacado = 1 
-    WHERE stock >= 50 AND destacado = 0;
-    
-    COMMIT;
-END sp_ActualizarStockBajo;
-/
-
--- Procedimiento para agregar al carrito
-CREATE OR REPLACE PROCEDURE sp_AgregarAlCarrito(
-    p_cliente_id IN NUMBER,
-    p_producto_id IN NUMBER,
-    p_talla IN VARCHAR2,
-    p_cantidad IN NUMBER
-) AS
-BEGIN
-    INSERT INTO stuffies_carrito (carrito_id, cliente_id, producto_id, talla, cantidad)
-    VALUES (seq_carrito.NEXTVAL, p_cliente_id, p_producto_id, p_talla, p_cantidad);
-    
-    COMMIT;
-END sp_AgregarAlCarrito;
-/
-
--- Procedimiento para procesar pedido masivo
-CREATE OR REPLACE PROCEDURE sp_ProcesarPedidoMasivo(
-    p_cliente_id IN NUMBER,
-    p_tipo_entrega IN VARCHAR2
-) AS
-    v_pedido_id NUMBER;
-    CURSOR c_carrito IS
-        SELECT producto_id, cantidad, talla
-        FROM stuffies_carrito
-        WHERE cliente_id = p_cliente_id;
-BEGIN
-    -- Crear pedido
-    SELECT seq_pedidos.NEXTVAL INTO v_pedido_id FROM DUAL;
-    
-    INSERT INTO stuffies_pedidos (pedido_id, cliente_id, tipo_entrega)
-    VALUES (v_pedido_id, p_cliente_id, p_tipo_entrega);
-    
-    -- Procesar items del carrito
-    FOR item IN c_carrito LOOP
-        INSERT INTO stuffies_detalle_pedido (detalle_id, pedido_id, producto_id, cantidad, precio_unitario)
-        VALUES (seq_detalle.NEXTVAL, v_pedido_id, item.producto_id, item.cantidad, 
-               (SELECT precio FROM stuffies_productos WHERE producto_id = item.producto_id));
-    END LOOP;
-    
-    -- Limpiar carrito
-    DELETE FROM stuffies_carrito WHERE cliente_id = p_cliente_id;
-    
-    COMMIT;
-END sp_ProcesarPedidoMasivo;
-/
-
--- Función para calcular total del pedido
-CREATE OR REPLACE FUNCTION fn_CalcularTotalPedido(p_pedido_id IN NUMBER) RETURN NUMBER AS
-    v_total NUMBER := 0;
-BEGIN
-    SELECT NVL(SUM(cantidad * precio_unitario), 0)
-    INTO v_total
-    FROM stuffies_detalle_pedido
-    WHERE pedido_id = p_pedido_id;
-    
-    RETURN v_total;
-END fn_CalcularTotalPedido;
-/
-
--- Función sin parámetros para contar productos destacados
-CREATE OR REPLACE FUNCTION fn_ContarProductosDestacados RETURN NUMBER AS
-    v_count NUMBER;
-BEGIN
-    SELECT COUNT(*) INTO v_count
-    FROM stuffies_productos
-    WHERE destacado = 1;
-    
-    RETURN v_count;
-END fn_ContarProductosDestacados;
-/
-
--- Función para obtener información del cliente
-CREATE OR REPLACE FUNCTION fn_ObtenerInfoCliente(p_cliente_id IN NUMBER) RETURN VARCHAR2 AS
-    v_info VARCHAR2(500);
-    v_nombre VARCHAR2(100);
-    v_email VARCHAR2(100);
-BEGIN
-    SELECT nombre, email INTO v_nombre, v_email
-    FROM stuffies_clientes
-    WHERE cliente_id = p_cliente_id;
-    
-    v_info := 'Cliente: ' || v_nombre || ' | Email: ' || v_email;
-    RETURN v_info;
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        RETURN 'Cliente no encontrado';
-END fn_ObtenerInfoCliente;
-/
-
--- Función para obtener resumen del carrito
-CREATE OR REPLACE FUNCTION fn_ObtenerResumenCarrito(p_cliente_id IN NUMBER) RETURN VARCHAR2 AS
-    v_items NUMBER;
-    v_total NUMBER;
-BEGIN
-    SELECT COUNT(*) INTO v_items
-    FROM stuffies_carrito
-    WHERE cliente_id = p_cliente_id;
-    
-    SELECT NVL(SUM(c.cantidad * p.precio), 0) INTO v_total
-    FROM stuffies_carrito c
-    JOIN stuffies_productos p ON c.producto_id = p.producto_id
-    WHERE c.cliente_id = p_cliente_id;
-    
-    RETURN v_items || ' items - Total: $' || v_total;
-END fn_ObtenerResumenCarrito;
-/
-
--- Package
-CREATE OR REPLACE PACKAGE pkg_GestionStock AS
-    PROCEDURE ActualizarStockProducto(p_producto_id IN NUMBER, p_cantidad IN NUMBER);
-    FUNCTION ObtenerStockDisponible(p_producto_id IN NUMBER) RETURN NUMBER;
-    FUNCTION ObtenerProductosStockBajo RETURN SYS_REFCURSOR;
-END pkg_GestionStock;
-/
-
-CREATE OR REPLACE PACKAGE BODY pkg_GestionStock AS
-    PROCEDURE GenerarAlertaStock(p_producto_id IN NUMBER, p_stock_actual IN NUMBER) IS
-    BEGIN
-        DBMS_OUTPUT.PUT_LINE('ALERTA: Producto ID ' || p_producto_id || ' tiene stock bajo: ' || p_stock_actual);
-    END GenerarAlertaStock;
-    
-    PROCEDURE ActualizarStockProducto(p_producto_id IN NUMBER, p_cantidad IN NUMBER) IS
-        v_stock_actual NUMBER;
-    BEGIN
-        UPDATE stuffies_productos 
-        SET stock = stock + p_cantidad 
-        WHERE producto_id = p_producto_id;
-        
-        SELECT stock INTO v_stock_actual
-        FROM stuffies_productos
-        WHERE producto_id = p_producto_id;
-        
-        IF v_stock_actual < 5 THEN
-            GenerarAlertaStock(p_producto_id, v_stock_actual);
-        END IF;
-        
-        COMMIT;
-    END ActualizarStockProducto;
-    
-    FUNCTION ObtenerStockDisponible(p_producto_id IN NUMBER) RETURN NUMBER IS
-        v_stock NUMBER;
-    BEGIN
-        SELECT stock INTO v_stock
-        FROM stuffies_productos
-        WHERE producto_id = p_producto_id;
-        
-        RETURN v_stock;
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN
-            RETURN 0;
-    END ObtenerStockDisponible;
-    
-    FUNCTION ObtenerProductosStockBajo RETURN SYS_REFCURSOR IS
-        v_cursor SYS_REFCURSOR;
-    BEGIN
-        OPEN v_cursor FOR
-            SELECT producto_id, nombre, stock
-            FROM stuffies_productos
-            WHERE stock < 10
-            ORDER BY stock ASC;
-            
-        RETURN v_cursor;
-    END ObtenerProductosStockBajo;
-END pkg_GestionStock;
-/
-
--- Triggers
-CREATE OR REPLACE TRIGGER trg_AuditoriaPrecios
-    BEFORE UPDATE OF precio ON stuffies_productos
-    FOR EACH ROW
-BEGIN
-    IF :OLD.precio != :NEW.precio THEN
-        INSERT INTO stuffies_auditoria_precios (
-            auditoria_id, producto_id, precio_anterior, precio_nuevo, usuario
-        ) VALUES (
-            seq_auditoria.NEXTVAL, :OLD.producto_id, :OLD.precio, :NEW.precio, USER
-        );
-    END IF;
-END trg_AuditoriaPrecios;
-/
-
-CREATE OR REPLACE TRIGGER trg_ValidarHorarioPedidos
-    BEFORE INSERT ON stuffies_pedidos
+-------------------------------------------------------------------------------
+-- COMPATIBILIDAD: columna STOCK_ID autonumérica en STUFFIES_STOCK_TALLA (solo si existe o se crea)
+-------------------------------------------------------------------------------
 DECLARE
-    v_hora_actual NUMBER;
+  v_col NUMBER := 0;
 BEGIN
-    v_hora_actual := TO_NUMBER(TO_CHAR(SYSDATE, 'HH24'));
-    
-    IF v_hora_actual < 8 OR v_hora_actual >= 20 THEN
-        RAISE_APPLICATION_ERROR(-20001, 
-            'Los pedidos solo se pueden realizar entre las 08:00 y 20:00 horas. Hora actual: ' || 
-            TO_CHAR(SYSDATE, 'HH24:MI'));
-    END IF;
-END trg_ValidarHorarioPedidos;
-/
+  SELECT COUNT(*) INTO v_col
+  FROM user_tab_cols
+  WHERE table_name = 'STUFFIES_STOCK_TALLA' AND column_name = 'STOCK_ID';
 
--- =============================================
--- DEMOSTRACIÓN PRINCIPAL (CÓDIGO ORIGINAL CORREGIDO)
--- =============================================
+  IF v_col = 0 THEN
+    -- Si tu tabla tenía esa columna en otra versión y la necesitas, la agregamos.
+    EXECUTE IMMEDIATE 'ALTER TABLE hr.stuffies_stock_talla ADD (stock_id NUMBER)';
+  END IF;
 
-BEGIN
-    -- Encabezado principal
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('╔══════════════════════════════════════════════════════════════════════════════════════════════════════╗');
-    DBMS_OUTPUT.PUT_LINE('║                                    ⭐ SISTEMA STUFFIES - DEMOSTRACIÓN COMPLETA                      ║'); 
-    DBMS_OUTPUT.PUT_LINE('╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝');
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
+  BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE hr.seq_sst_stock_id START WITH 1';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLCODE != -955 THEN RAISE; END IF; -- ya existe
+  END;
 
-    -- =============================================
-    -- 1. SECCIÓN PROCEDIMIENTOS (IE2.1.1)
-    -- =============================================
-    DBMS_OUTPUT.PUT_LINE('1. 🎯 PROCEDIMIENTOS ALMACENADOS - IE2.1.1');
-    DBMS_OUTPUT.PUT_LINE('   ┌─────────────────────────────────────────────────────────────────────────────────────────────┐');
-    DBMS_OUTPUT.PUT_LINE('   │ OBJETIVO: Construir procedimientos con y sin parámetros para procesamiento masivo           │');
-    DBMS_OUTPUT.PUT_LINE('   │ USABILIDAD: Usables en otros programas PL/SQL y sentencias SQL                             │');
-    DBMS_OUTPUT.PUT_LINE('   └─────────────────────────────────────────────────────────────────────────────────────────────┘');
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-
-    -- 📌 PROCEDIMIENTO SIN PARÁMETROS
-    DBMS_OUTPUT.PUT_LINE('   📌 PROCEDIMIENTO SIN PARÁMETROS: sp_ActualizarStockBajo');
-    DBMS_OUTPUT.PUT_LINE('   ┌─────────────────────────────────────────────────────────────────────────────────────────────┐');
-    DBMS_OUTPUT.PUT_LINE('   │ DESCRIPCIÓN:                                                                               │');
-    DBMS_OUTPUT.PUT_LINE('   │   • Procesamiento masivo de todos los productos                                            │');
-    DBMS_OUTPUT.PUT_LINE('   │   • Actualiza campo "destacado" basado en stock disponible                                 │');
-    DBMS_OUTPUT.PUT_LINE('   │   • Lógica: Si stock < 10 → destacado = 0, si stock >= 50 → destacado = 1                  │');
-    DBMS_OUTPUT.PUT_LINE('   │   • No requiere parámetros de entrada                                                      │');
-    DBMS_OUTPUT.PUT_LINE('   └─────────────────────────────────────────────────────────────────────────────────────────────┘');
-
-    DECLARE
-        v_productos_antes       NUMBER;
-        v_productos_despues     NUMBER;
-        v_productos_bajo_stock  NUMBER;
-        v_productos_alto_stock  NUMBER;
+  -- Trigger que rellena stock_id si la columna existe
+  EXECUTE IMMEDIATE q'[
+    CREATE OR REPLACE TRIGGER hr.trg_sst_stock_id
+    BEFORE INSERT ON hr.stuffies_stock_talla
+    FOR EACH ROW
+    WHEN (NEW.stock_id IS NULL)
     BEGIN
-        -- Estadísticas ANTES
-        SELECT COUNT(*) INTO v_productos_antes FROM stuffies_productos WHERE destacado = 1;
-        SELECT COUNT(*) INTO v_productos_bajo_stock FROM stuffies_productos WHERE stock < 10;
-        SELECT COUNT(*) INTO v_productos_alto_stock FROM stuffies_productos WHERE stock >= 50;
-        
-        DBMS_OUTPUT.PUT_LINE('   📊 ESTADO INICIAL DEL SISTEMA:');
-        DBMS_OUTPUT.PUT_LINE('      ├─ Productos destacados: ' || v_productos_antes);
-        DBMS_OUTPUT.PUT_LINE('      ├─ Productos con stock bajo (<10): ' || v_productos_bajo_stock);
-        DBMS_OUTPUT.PUT_LINE('      └─ Productos con stock alto (>=50): ' || v_productos_alto_stock);
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        
-        DBMS_OUTPUT.PUT_LINE('   🔄 EJECUTANDO PROCEDIMIENTO...');
-        
-        -- Ejecutar procedimiento
-        sp_ActualizarStockBajo;
-        
-        -- Estadísticas DESPUÉS
-        SELECT COUNT(*) INTO v_productos_despues FROM stuffies_productos WHERE destacado = 1;
-        
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        DBMS_OUTPUT.PUT_LINE('   📊 RESULTADOS DEL PROCESAMIENTO MASIVO:');
-        DBMS_OUTPUT.PUT_LINE('      ├─ Productos destacados antes: ' || v_productos_antes);
-        DBMS_OUTPUT.PUT_LINE('      ├─ Productos destacados después: ' || v_productos_despues);
-        DBMS_OUTPUT.PUT_LINE('      ├─ Cambio neto: ' || (v_productos_despues - v_productos_antes));
-        DBMS_OUTPUT.PUT_LINE('      └─ Estado: ✅ PROCESAMIENTO MASIVO COMPLETADO');
-        
-        -- Mostrar detalles de productos actualizados
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        DBMS_OUTPUT.PUT_LINE('   📋 DETALLE DE PRODUCTOS ACTUALIZADOS:');
-        FOR rec IN (
-            SELECT producto_id, nombre, stock, destacado,
-                   CASE 
-                       WHEN stock < 10 AND destacado = 1 THEN '❌ REMOVIDO DE DESTACADOS'
-                       WHEN stock >= 50 AND destacado = 0 THEN '⭐ AGREGADO A DESTACADOS'
-                       ELSE '⚙️  SIN CAMBIOS'
-                   END as accion
-            FROM stuffies_productos
-            WHERE (stock < 10 AND destacado = 1) OR (stock >= 50 AND destacado = 0)
-            ORDER BY stock DESC
-        ) LOOP
-            DBMS_OUTPUT.PUT_LINE('      ├─ ' || rec.nombre || ' (ID: ' || rec.producto_id || ')');
-            DBMS_OUTPUT.PUT_LINE('      │  ├─ Stock: ' || rec.stock || ' | Destacado: ' || rec.destacado);
-            DBMS_OUTPUT.PUT_LINE('      │  └─ Acción: ' || rec.accion);
-        END LOOP;
-        DBMS_OUTPUT.PUT_LINE('      └─ FIN DEL REPORTE');
-        
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('   ❌ ERROR CRÍTICO: ' || SQLERRM);
-            DBMS_OUTPUT.PUT_LINE('   💡 SOLUCIÓN: Verificar que el procedimiento sp_ActualizarStockBajo existe');
+      :NEW.stock_id := hr.seq_sst_stock_id.NEXTVAL;
     END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    
-    -- 📌 PROCEDIMIENTO CON PARÁMETROS - VERSIÓN CORREGIDA
-    DBMS_OUTPUT.PUT_LINE('   📌 PROCEDIMIENTO CON PARÁMETROS: sp_ProcesarPedidoMasivo');
-    DBMS_OUTPUT.PUT_LINE('   ┌─────────────────────────────────────────────────────────────────────────────────────────────┐');
-    DBMS_OUTPUT.PUT_LINE('   │ DESCRIPCIÓN:                                                                               │');
-    DBMS_OUTPUT.PUT_LINE('   │   • Parámetros: p_cliente_id, p_tipo_entrega                                              │');
-    DBMS_OUTPUT.PUT_LINE('   │   • Procesa todo el carrito del cliente de forma masiva                                   │');
-    DBMS_OUTPUT.PUT_LINE('   │   • Usa cursor para procesamiento masivo de items                                         │');
-    DBMS_OUTPUT.PUT_LINE('   │   • Genera pedido y detalle automáticamente                                               │');
-    DBMS_OUTPUT.PUT_LINE('   └─────────────────────────────────────────────────────────────────────────────────────────────┘');
-
-    DECLARE
-        v_cliente_id    NUMBER := 3;
-        v_items_carrito NUMBER;
-        v_total_carrito NUMBER;
-    BEGIN
-        -- Limpiar datos anteriores
-        DELETE FROM stuffies_carrito WHERE cliente_id = v_cliente_id;
-        COMMIT;
-        
-        DBMS_OUTPUT.PUT_LINE('   🛒 PREPARANDO ENTORNO DE PRUEBA:');
-        DBMS_OUTPUT.PUT_LINE('      ├─ Cliente ID: ' || v_cliente_id);
-        
-        -- Agregar productos al carrito
-        sp_AgregarAlCarrito(v_cliente_id, 5,  'M',  2);  -- 2 unidades del producto 5 talla M
-        sp_AgregarAlCarrito(v_cliente_id, 11, '56', 1); -- 1 unidad del producto 11 talla 56
-        sp_AgregarAlCarrito(v_cliente_id, 8,  'L',  1);  -- 1 unidad del producto 8 talla L
-        
-        -- Obtener información del carrito (VERSIÓN CORREGIDA)
-        SELECT COUNT(*) INTO v_items_carrito FROM stuffies_carrito WHERE cliente_id = v_cliente_id;
-        
-        -- Calcular total manualmente usando el precio de la tabla productos
-        SELECT NVL(SUM(c.cantidad * p.precio), 0)
-        INTO v_total_carrito
-        FROM stuffies_carrito c
-        JOIN stuffies_productos p ON c.producto_id = p.producto_id
-        WHERE c.cliente_id = v_cliente_id;
-        
-        DBMS_OUTPUT.PUT_LINE('      ├─ Items en carrito: ' || v_items_carrito);
-        DBMS_OUTPUT.PUT_LINE('      ├─ Total carrito: $' || v_total_carrito);
-        DBMS_OUTPUT.PUT_LINE('      └─ Resumen: ' || fn_ObtenerResumenCarrito(v_cliente_id));
-        
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        DBMS_OUTPUT.PUT_LINE('   📦 DETALLE DEL CARRITO (VERSIÓN CORREGIDA):');
-        FOR rec IN (
-            SELECT c.producto_id, p.nombre, p.precio, c.talla, c.cantidad,
-                   (c.cantidad * p.precio) as subtotal
-            FROM stuffies_carrito c
-            JOIN stuffies_productos p ON c.producto_id = p.producto_id
-            WHERE c.cliente_id = v_cliente_id
-            ORDER BY c.producto_id
-        ) LOOP
-            DBMS_OUTPUT.PUT_LINE('      ├─ ' || rec.nombre);
-            DBMS_OUTPUT.PUT_LINE('      │  ├─ Talla: ' || rec.talla || ' | Cantidad: ' || rec.cantidad);
-            DBMS_OUTPUT.PUT_LINE('      │  ├─ Precio unitario: $' || rec.precio);
-            DBMS_OUTPUT.PUT_LINE('      │  └─ Subtotal: $' || rec.subtotal);
-        END LOOP;
-        DBMS_OUTPUT.PUT_LINE('      └─ TOTAL: $' || v_total_carrito);
-        
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        DBMS_OUTPUT.PUT_LINE('   🔄 INTENTANDO PROCESAR PEDIDO...');
-        
-        -- Intentar procesar pedido (puede fallar por trigger de horario)
-        BEGIN
-            sp_ProcesarPedidoMasivo(v_cliente_id, 'PRESENCIAL');
-            DBMS_OUTPUT.PUT_LINE('   ✅ PEDIDO PROCESADO EXITOSAMENTE');
-            
-            -- Obtener el último pedido generado
-            DECLARE
-                v_ultimo_pedido NUMBER;
-            BEGIN
-                SELECT MAX(pedido_id) INTO v_ultimo_pedido 
-                FROM stuffies_pedidos 
-                WHERE cliente_id = v_cliente_id;
-                
-                IF v_ultimo_pedido IS NOT NULL THEN
-                    DBMS_OUTPUT.PUT_LINE('   📋 Número de pedido generado: ' || v_ultimo_pedido);
-                ELSE
-                    DBMS_OUTPUT.PUT_LINE('   📋 Pedido generado (ID no disponible)');
-                END IF;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    DBMS_OUTPUT.PUT_LINE('   📋 Pedido generado (no se pudo obtener ID)');
-            END;
-            
-        EXCEPTION
-            WHEN OTHERS THEN
-                DBMS_OUTPUT.PUT_LINE('   ⚠️  DEMOSTRACIÓN PARCIAL - RAZÓN: ' || SQLERRM);
-                DBMS_OUTPUT.PUT_LINE('   💡 INFORMACIÓN: El procedimiento funciona correctamente, pero el trigger');
-                DBMS_OUTPUT.PUT_LINE('      trg_ValidarHorarioPedidos bloquea operaciones fuera del horario comercial');
-                DBMS_OUTPUT.PUT_LINE('   🕒 Horario permitido: 08:00 - 20:00 | Hora actual: ' || TO_CHAR(SYSDATE, 'HH24:MI'));
-        END;
-        
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('   ❌ ERROR PREPARANDO DATOS: ' || SQLERRM);
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN PROCEDIMIENTOS COMPLETADA - IE2.1.1');
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-
-    -- =============================================
-    -- 2. SECCIÓN FUNCIONES (IE2.1.3) - VERSIÓN CORREGIDA
-    -- =============================================
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('2. 🔧 FUNCIONES ALMACENADAS - IE2.1.3');
-    DBMS_OUTPUT.PUT_LINE('   ┌─────────────────────────────────────────────────────────────────────────────────────────────┐');
-    DBMS_OUTPUT.PUT_LINE('   │ OBJETIVO: Construir funciones (con/sin parámetros) usables en SQL y PL/SQL                  │');
-    DBMS_OUTPUT.PUT_LINE('   └─────────────────────────────────────────────────────────────────────────────────────────────┘');
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-
-    DBMS_OUTPUT.PUT_LINE('   📌 FUNCIÓN CON PARÁMETROS (Usable en SQL): fn_CalcularTotalPedido');
-    DECLARE
-        v_total_pedido NUMBER;
-        v_pedido_id    NUMBER := 1;
-    BEGIN
-        BEGIN
-            v_total_pedido := fn_CalcularTotalPedido(v_pedido_id);
-            DBMS_OUTPUT.PUT_LINE('   💰 TOTAL PEDIDO #' || v_pedido_id || ': $' || NVL(TO_CHAR(v_total_pedido), 'No encontrado'));
-        EXCEPTION
-            WHEN OTHERS THEN
-                DBMS_OUTPUT.PUT_LINE('   ⚠️  Pedido #' || v_pedido_id || ' no disponible, probando con otro...');
-                -- Intentar con otro pedido
-                BEGIN
-                    SELECT MAX(pedido_id) INTO v_pedido_id FROM stuffies_pedidos WHERE ROWNUM = 1;
-                    IF v_pedido_id IS NOT NULL THEN
-                        v_total_pedido := fn_CalcularTotalPedido(v_pedido_id);
-                        DBMS_OUTPUT.PUT_LINE('   💰 TOTAL PEDIDO #' || v_pedido_id || ': $' || v_total_pedido);
-                    ELSE
-                        DBMS_OUTPUT.PUT_LINE('   💰 No hay pedidos disponibles para demostración');
-                    END IF;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        DBMS_OUTPUT.PUT_LINE('   💰 No se pudo calcular total de pedido: ' || SQLERRM);
-                END;
-        END;
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   📌 FUNCIÓN SIN PARÁMETROS (Usable en SQL): fn_ContarProductosDestacados');
-    DECLARE
-        v_productos_destacados NUMBER;
-    BEGIN
-        v_productos_destacados := fn_ContarProductosDestacados();
-        DBMS_OUTPUT.PUT_LINE('   🌟 PRODUCTOS DESTACADOS: ' || v_productos_destacados);
-        
-        -- Mostrar detalles adicionales
-        DBMS_OUTPUT.PUT_LINE('   📋 Lista de productos destacados:');
-        FOR rec IN (
-            SELECT producto_id, nombre, precio, stock 
-            FROM stuffies_productos 
-            WHERE destacado = 1 
-            ORDER BY nombre
-        ) LOOP
-            DBMS_OUTPUT.PUT_LINE('      ├─ ' || rec.nombre || ' (ID: ' || rec.producto_id || ')');
-            DBMS_OUTPUT.PUT_LINE('      │  ├─ Precio: $' || rec.precio || ' | Stock: ' || rec.stock);
-        END LOOP;
-        DBMS_OUTPUT.PUT_LINE('      └─ Total: ' || v_productos_destacados || ' productos destacados');
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('   ❌ ERROR: ' || SQLERRM);
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   📌 FUNCIÓN PARA OTROS PROGRAMAS PL/SQL: fn_ObtenerInfoCliente');
-    DECLARE
-        v_info_cliente VARCHAR2(500);
-        v_cliente_id   NUMBER := 2;
-    BEGIN
-        v_info_cliente := fn_ObtenerInfoCliente(v_cliente_id);
-        DBMS_OUTPUT.PUT_LINE('   👤 INFORMACIÓN CLIENTE #' || v_cliente_id || ': ' || v_info_cliente);
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('   ❌ ERROR: ' || SQLERRM);
-            DBMS_OUTPUT.PUT_LINE('   💡 Probando con cliente por defecto...');
-            BEGIN
-                SELECT MIN(cliente_id) INTO v_cliente_id FROM stuffies_clientes WHERE ROWNUM = 1;
-                IF v_cliente_id IS NOT NULL THEN
-                    v_info_cliente := fn_ObtenerInfoCliente(v_cliente_id);
-                    DBMS_OUTPUT.PUT_LINE('   👤 INFORMACIÓN CLIENTE #' || v_cliente_id || ': ' || v_info_cliente);
-                ELSE
-                    DBMS_OUTPUT.PUT_LINE('   👤 No hay clientes disponibles');
-                END IF;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    DBMS_OUTPUT.PUT_LINE('   👤 No se pudo obtener información del cliente');
-            END;
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN FUNCIONES COMPLETADA - IE2.1.3');
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-
-    -- =============================================
-    -- 3. SECCIÓN PACKAGES (IE2.2.1)
-    -- =============================================
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('3. 📦 PACKAGES - IE2.2.1');
-    DBMS_OUTPUT.PUT_LINE('   ┌─────────────────────────────────────────────────────────────────────────────────────────────┐');
-    DBMS_OUTPUT.PUT_LINE('   │ OBJETIVO: Mostrar API pública y helpers privados (modularidad/encapsulación)               │');
-    DBMS_OUTPUT.PUT_LINE('   └─────────────────────────────────────────────────────────────────────────────────────────────┘');
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-
-    DBMS_OUTPUT.PUT_LINE('   📌 PACKAGE pkg_GestionStock: público (Actualizar/Obtener/Procesar) / privado (GenerarAlerta)');
-    DECLARE
-        v_stock_antes   NUMBER;
-        v_stock_despues NUMBER;
-        v_cursor        SYS_REFCURSOR;
-        v_producto_id   NUMBER;
-        v_nombre        VARCHAR2(100);
-        v_stock         NUMBER;
-        v_producto_test NUMBER := 6;
-    BEGIN
-        -- Obtener stock antes
-        SELECT stock INTO v_stock_antes
-        FROM stuffies_productos
-        WHERE producto_id = v_producto_test;
-
-        DBMS_OUTPUT.PUT_LINE('   📊 Stock producto ' || v_producto_test || ' antes: ' || v_stock_antes);
-
-        -- Actualizar stock usando el package
-        pkg_GestionStock.ActualizarStockProducto(v_producto_test, 2);
-
-        -- Obtener stock después
-        v_stock_despues := pkg_GestionStock.ObtenerStockDisponible(v_producto_test);
-        DBMS_OUTPUT.PUT_LINE('   📊 Stock producto ' || v_producto_test || ' después: ' || v_stock_despues);
-
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        DBMS_OUTPUT.PUT_LINE('   📋 PRODUCTOS CON STOCK BAJO:');
-        v_cursor := pkg_GestionStock.ObtenerProductosStockBajo();
-        LOOP
-            FETCH v_cursor INTO v_producto_id, v_nombre, v_stock;
-            EXIT WHEN v_cursor%NOTFOUND;
-            DBMS_OUTPUT.PUT_LINE('      ├─ ' || v_nombre || ' (ID: ' || v_producto_id || ')');
-            DBMS_OUTPUT.PUT_LINE('      │  └─ Stock actual: ' || v_stock || ' unidades');
-        END LOOP;
-        CLOSE v_cursor;
-
-        DBMS_OUTPUT.PUT_LINE('   ✅ PACKAGE DEMOSTRADO EXITOSAMENTE');
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('   ❌ ERROR: ' || SQLERRM);
-            DBMS_OUTPUT.PUT_LINE('   💡 El package pkg_GestionStock podría no estar implementado');
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN PACKAGES COMPLETADA - IE2.2.1');
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-
-    -- =============================================
-    -- 4. SECCIÓN TRIGGERS (IE2.3.1)
-    -- =============================================
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('4. ⚡ TRIGGERS - IE2.3.1');
-    DBMS_OUTPUT.PUT_LINE('   ┌─────────────────────────────────────────────────────────────────────────────────────────────┐');
-    DBMS_OUTPUT.PUT_LINE('   │ OBJETIVO: Control por fila (integridad) y por sentencia (política/horario)                 │');
-    DBMS_OUTPUT.PUT_LINE('   └─────────────────────────────────────────────────────────────────────────────────────────────┘');
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-
-    DBMS_OUTPUT.PUT_LINE('   📌 TRIGGER A NIVEL DE FILA: trg_AuditoriaPrecios (BEFORE UPDATE OF precio)');
-    DECLARE
-        v_auditoria_antes   NUMBER;
-        v_auditoria_despues NUMBER;
-        v_precio_actual     NUMBER;
-        v_nuevo_precio      NUMBER := 38990;
-        v_producto_test     NUMBER := 7;
-        v_existe_auditoria  NUMBER;
-    BEGIN
-        -- Verificar si existe la tabla de auditoría
-        SELECT COUNT(*) INTO v_existe_auditoria 
-        FROM user_tables 
-        WHERE table_name = 'STUFFIES_AUDITORIA_PRECIOS';
-        
-        IF v_existe_auditoria = 0 THEN
-            DBMS_OUTPUT.PUT_LINE('   ⚠️  Tabla de auditoría no existe, creando demostración alternativa...');
-            DBMS_OUTPUT.PUT_LINE('   💡 El trigger trg_AuditoriaPrecios estaría registrando cambios de precios');
-            DBMS_OUTPUT.PUT_LINE('   🔄 Actualizando precio del producto ' || v_producto_test || '...');
-            
-            -- Obtener precio actual
-            SELECT precio INTO v_precio_actual
-            FROM stuffies_productos
-            WHERE producto_id = v_producto_test;
-            
-            DBMS_OUTPUT.PUT_LINE('   💵 Precio actual: $' || v_precio_actual);
-            DBMS_OUTPUT.PUT_LINE('   💵 Nuevo precio: $' || v_nuevo_precio);
-            
-            UPDATE stuffies_productos SET precio = v_nuevo_precio WHERE producto_id = v_producto_test;
-            COMMIT;
-            
-            DBMS_OUTPUT.PUT_LINE('   ✅ Precio actualizado - Trigger simulado funcionando');
-        ELSE
-            -- Obtener precio actual
-            SELECT precio INTO v_precio_actual
-            FROM stuffies_productos
-            WHERE producto_id = v_producto_test;
-
-            SELECT COUNT(*) INTO v_auditoria_antes FROM stuffies_auditoria_precios;
-            DBMS_OUTPUT.PUT_LINE('   📊 Registros auditoría antes: ' || v_auditoria_antes);
-            DBMS_OUTPUT.PUT_LINE('   💵 Precio actual producto ' || v_producto_test || ': $' || v_precio_actual);
-            DBMS_OUTPUT.PUT_LINE('   🔄 Nuevo precio a establecer: $' || v_nuevo_precio);
-
-            DBMS_OUTPUT.PUT_LINE('   🔄 Actualizando precio del producto ' || v_producto_test || '...');
-            UPDATE stuffies_productos SET precio = v_nuevo_precio WHERE producto_id = v_producto_test;
-            COMMIT;
-
-            SELECT COUNT(*) INTO v_auditoria_despues FROM stuffies_auditoria_precios;
-            DBMS_OUTPUT.PUT_LINE('   📊 Registros auditoría después: ' || v_auditoria_despues);
-            DBMS_OUTPUT.PUT_LINE('   ✅ Trigger de fila ejecutado: ' ||
-                                (v_auditoria_despues - v_auditoria_antes) || ' registros añadidos a auditoría');
-
-            -- Mostrar el registro de auditoría (versión segura)
-            DBMS_OUTPUT.PUT_LINE(CHR(10));
-            DBMS_OUTPUT.PUT_LINE('   📋 DETALLE DE AUDITORÍA:');
-            DECLARE
-                CURSOR c_auditoria IS
-                    SELECT producto_id, precio_anterior, precio_nuevo, usuario
-                    FROM stuffies_auditoria_precios
-                    WHERE producto_id = v_producto_test
-                    ORDER BY ROWNUM DESC;
-                v_audit_rec c_auditoria%ROWTYPE;
-            BEGIN
-                OPEN c_auditoria;
-                FETCH c_auditoria INTO v_audit_rec;
-                IF c_auditoria%FOUND THEN
-                    DBMS_OUTPUT.PUT_LINE('      ├─ Producto ID: ' || v_audit_rec.producto_id);
-                    DBMS_OUTPUT.PUT_LINE('      ├─ Precio anterior: $' || v_audit_rec.precio_anterior);
-                    DBMS_OUTPUT.PUT_LINE('      ├─ Precio nuevo: $' || v_audit_rec.precio_nuevo);
-                    DBMS_OUTPUT.PUT_LINE('      ├─ Usuario: ' || v_audit_rec.usuario);
-                    DBMS_OUTPUT.PUT_LINE('      └─ Fecha: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI'));
-                ELSE
-                    DBMS_OUTPUT.PUT_LINE('      └─ No se encontraron registros de auditoría');
-                END IF;
-                CLOSE c_auditoria;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    DBMS_OUTPUT.PUT_LINE('      └─ No se pudo obtener detalle de auditoría');
-            END;
-        END IF;
-
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('   ❌ ERROR: ' || SQLERRM);
-            DBMS_OUTPUT.PUT_LINE('   💡 El trigger trg_AuditoriaPrecios podría no estar implementado');
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   📌 TRIGGER A NIVEL DE SENTENCIA: trg_ValidarHorarioPedidos (BEFORE INSERT)');
-    BEGIN
-        DBMS_OUTPUT.PUT_LINE('   ⏰ Hora actual del sistema: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS'));
-        DBMS_OUTPUT.PUT_LINE('   💡 Este trigger bloquea pedidos fuera del horario comercial establecido');
-        DBMS_OUTPUT.PUT_LINE('   🕒 Horario permitido: 08:00 – 20:00');
-        
-        -- Verificar si estamos en horario permitido
-        IF TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) BETWEEN 8 AND 19 THEN
-            DBMS_OUTPUT.PUT_LINE('   ✅ Estado: EN HORARIO PERMITIDO - Pedidos permitidos');
-        ELSE
-            DBMS_OUTPUT.PUT_LINE('   ❌ Estado: FUERA DE HORARIO - Pedidos bloqueados');
-        END IF;
-        
-        DBMS_OUTPUT.PUT_LINE('   ✅ Trigger de sentencia ACTIVO y FUNCIONANDO');
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('   ❌ ERROR: ' || SQLERRM);
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-    DBMS_OUTPUT.PUT_LINE('   ✅ SECCIÓN TRIGGERS COMPLETADA - IE2.3.1');
-    DBMS_OUTPUT.PUT_LINE('   ──────────────────────────────────────────────────────────────────────────────────────────────');
-
-    -- =============================================
-    -- 5. RESUMEN FINAL MEJORADO
-    -- =============================================
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('5. 📊 RESUMEN FINAL DE IMPLEMENTACIÓN - STUFFIES ERP');
-    DBMS_OUTPUT.PUT_LINE('   ┌────────────────────────────────┬──────────────────┬─────────────────────────────────────────────┐');
-    DBMS_OUTPUT.PUT_LINE('   │ COMPONENTE PL/SQL             │ ESTADO          │ OBJETOS DEMOSTRADOS                        │');
-    DBMS_OUTPUT.PUT_LINE('   ├────────────────────────────────┼──────────────────┼─────────────────────────────────────────────┤');
-    DBMS_OUTPUT.PUT_LINE('   │ 🎯 IE2.1.1 - Procedimientos   │ ✅ COMPLETO     │ • sp_ActualizarStockBajo                   │');
-    DBMS_OUTPUT.PUT_LINE('   │                                │                  │ • sp_ProcesarPedidoMasivo                  │');
-    DBMS_OUTPUT.PUT_LINE('   │                                │                  │ • sp_AgregarAlCarrito                      │');
-    DBMS_OUTPUT.PUT_LINE('   ├────────────────────────────────┼──────────────────┼─────────────────────────────────────────────┤');
-    DBMS_OUTPUT.PUT_LINE('   │ 🔧 IE2.1.3 - Funciones        │ ✅ COMPLETO     │ • fn_CalcularTotalPedido                   │');
-    DBMS_OUTPUT.PUT_LINE('   │                                │                  │ • fn_ContarProductosDestacados             │');
-    DBMS_OUTPUT.PUT_LINE('   │                                │                  │ • fn_ObtenerInfoCliente                    │');
-    DBMS_OUTPUT.PUT_LINE('   │                                │                  │ • fn_ObtenerResumenCarrito                 │');
-    DBMS_OUTPUT.PUT_LINE('   ├────────────────────────────────┼──────────────────┼─────────────────────────────────────────────┤');
-    DBMS_OUTPUT.PUT_LINE('   │ 📦 IE2.2.1 - Packages         │ ✅ COMPLETO     │ • pkg_GestionStock                         │');
-    DBMS_OUTPUT.PUT_LINE('   │                                │                  │   (Métodos públicos/privados)              │');
-    DBMS_OUTPUT.PUT_LINE('   ├────────────────────────────────┼──────────────────┼─────────────────────────────────────────────┤');
-    DBMS_OUTPUT.PUT_LINE('   │ ⚡ IE2.3.1 - Triggers          │ ✅ COMPLETO     │ • trg_AuditoriaPrecios (FILA)              │');
-    DBMS_OUTPUT.PUT_LINE('   │                                │                  │ • trg_ValidarHorarioPedidos (SENTENCIA)    │');
-    DBMS_OUTPUT.PUT_LINE('   └────────────────────────────────┴──────────────────┴─────────────────────────────────────────────┘');
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('   📈 ESTADÍSTICAS FINALES DEL SISTEMA:');
-    
-    DECLARE
-        v_total_productos      NUMBER;
-        v_total_clientes       NUMBER;
-        v_total_pedidos        NUMBER;
-        v_productos_destacados NUMBER;
-    BEGIN
-        SELECT COUNT(*) INTO v_total_productos FROM stuffies_productos;
-        SELECT COUNT(*) INTO v_total_clientes FROM stuffies_clientes;
-        SELECT COUNT(*) INTO v_total_pedidos FROM stuffies_pedidos;
-        SELECT COUNT(*) INTO v_productos_destacados FROM stuffies_productos WHERE destacado = 1;
-        
-        DBMS_OUTPUT.PUT_LINE('      ├─ 📊 Total productos: ' || v_total_productos || ' (' || v_productos_destacados || ' destacados)');
-        DBMS_OUTPUT.PUT_LINE('      ├─ 👥 Total clientes: ' || v_total_clientes);
-        DBMS_OUTPUT.PUT_LINE('      ├─ 🛒 Total pedidos: ' || v_total_pedidos);
-        DBMS_OUTPUT.PUT_LINE('      └─ 🧮 Objetos PL/SQL: 10+ procedimientos, funciones, packages y triggers');
-        
-    EXCEPTION
-        WHEN OTHERS THEN
-            DBMS_OUTPUT.PUT_LINE('      ⚠️  No se pudieron obtener todas las estadísticas del sistema');
-    END;
-
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-    DBMS_OUTPUT.PUT_LINE('╔══════════════════════════════════════════════════════════════════════════════════════════════════════╗');
-    DBMS_OUTPUT.PUT_LINE('║                                   🎉 DEMOSTRACIÓN COMPLETADA EXITOSAMENTE                           ║');
-    DBMS_OUTPUT.PUT_LINE('║                                 ⭐ SISTEMA STUFFIES - ERP AVANZADO                                 ║');
-    DBMS_OUTPUT.PUT_LINE('╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝');
-    DBMS_OUTPUT.PUT_LINE(CHR(10));
-
-EXCEPTION
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        DBMS_OUTPUT.PUT_LINE('❌ ERROR CRÍTICO EN LA DEMOSTRACIÓN:');
-        DBMS_OUTPUT.PUT_LINE('   ├─ Código: ' || SQLCODE);
-        DBMS_OUTPUT.PUT_LINE('   ├─ Mensaje: ' || SQLERRM);
-        DBMS_OUTPUT.PUT_LINE('   └─ Acción: Verificar que todos los objetos PL/SQL estén creados correctamente');
-        
-        -- Información adicional para debugging
-        DBMS_OUTPUT.PUT_LINE(CHR(10));
-        DBMS_OUTPUT.PUT_LINE('🔧 INFORMACIÓN PARA DEBUGGING:');
-        DBMS_OUTPUT.PUT_LINE('   ├─ Hora del error: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS'));
-        DBMS_OUTPUT.PUT_LINE('   └─ Verificar existencia de tablas y objetos PL/SQL');
+  ]';
 END;
 /
+
+-------------------------------------------------------------------------------
+-- VISTAS
+-------------------------------------------------------------------------------
+CREATE OR REPLACE VIEW hr.vw_productos_con_stock AS
+SELECT
+  p.producto_id,
+  p.nombre,
+  p.precio,
+  NVL((SELECT SUM(s.stock)
+       FROM hr.stuffies_stock_talla s
+       WHERE s.producto_id = p.producto_id),0) AS stock_total,
+  LISTAGG(t.talla, ',') WITHIN GROUP (
+    ORDER BY CASE
+      WHEN REGEXP_LIKE(t.talla,'^\d+$') THEN TO_NUMBER(t.talla)
+      WHEN t.talla='XS'  THEN 1
+      WHEN t.talla='S'   THEN 2
+      WHEN t.talla='M'   THEN 3
+      WHEN t.talla='L'   THEN 4
+      WHEN t.talla='XL'  THEN 5
+      WHEN t.talla='XXL' THEN 6
+      ELSE 99
+    END
+  ) AS tallas
+FROM hr.stuffies_productos p
+LEFT JOIN hr.stuffies_stock_talla t ON t.producto_id=p.producto_id
+GROUP BY p.producto_id, p.nombre, p.precio;
+
+CREATE OR REPLACE VIEW hr.vw_producto_tallas_csv AS
+SELECT pr.id_producto,
+       pr.nombre,
+       pr.precio,
+       pr.stock,
+       LISTAGG(st.talla, ',') WITHIN GROUP (
+         ORDER BY CASE
+           WHEN REGEXP_LIKE(st.talla,'^\d+$') THEN TO_NUMBER(st.talla)
+           WHEN st.talla='XS'  THEN 1
+           WHEN st.talla='S'   THEN 2
+           WHEN st.talla='M'   THEN 3
+           WHEN st.talla='L'   THEN 4
+           WHEN st.talla='XL'  THEN 5
+           WHEN st.talla='XXL' THEN 6
+           ELSE 99
+         END
+       ) AS tallas_csv
+FROM hr.producto pr
+LEFT JOIN hr.stuffies_stock_talla st
+       ON st.producto_id = pr.id_producto
+GROUP BY pr.id_producto, pr.nombre, pr.precio, pr.stock;
+
+CREATE OR REPLACE VIEW hr.vw_reporte_stock_tabla AS
+SELECT p.producto_id AS id,
+       p.nombre,
+       SUM(NVL(s.stock,0)) AS stock_total
+FROM hr.stuffies_productos p
+LEFT JOIN hr.stuffies_stock_talla s
+  ON s.producto_id = p.producto_id
+GROUP BY p.producto_id, p.nombre;
+
+CREATE OR REPLACE VIEW hr.vw_reporte_stock_texto AS
+WITH data AS (
+  SELECT p.producto_id, p.nombre, SUM(NVL(s.stock,0)) AS stock_total
+  FROM hr.stuffies_productos p
+  LEFT JOIN hr.stuffies_stock_talla s
+    ON s.producto_id = p.producto_id
+  GROUP BY p.producto_id, p.nombre
+)
+SELECT '✅ Productos (stock total):' AS linea, 0 AS ord FROM dual
+UNION ALL
+SELECT ' - #'||producto_id||' '||RPAD(nombre,35)||' → stock='||stock_total, 1
+FROM data;
+
+-------------------------------------------------------------------------------
+-- PACKAGE (sin COMMITs internos)
+-------------------------------------------------------------------------------
+CREATE OR REPLACE PACKAGE hr.pkg_gestion_stock AS
+  PROCEDURE refrescar_producto(p_producto_id NUMBER);
+  PROCEDURE refrescar_todo;
+END pkg_gestion_stock;
+/
+
+CREATE OR REPLACE PACKAGE BODY hr.pkg_gestion_stock AS
+  PROCEDURE sync_row_producto(p_id NUMBER) IS
+  BEGIN
+    MERGE INTO hr.producto pr
+    USING (
+      SELECT p.producto_id AS id_producto,
+             p.nombre,
+             p.precio,
+             NVL((SELECT SUM(s.stock)
+                  FROM hr.stuffies_stock_talla s
+                  WHERE s.producto_id = p.producto_id),0) AS stock
+      FROM hr.stuffies_productos p
+      WHERE p.producto_id = p_id
+    ) s
+    ON (pr.id_producto = s.id_producto)
+    WHEN MATCHED THEN UPDATE SET
+      pr.nombre = s.nombre,
+      pr.precio = s.precio,
+      pr.stock  = s.stock
+    WHEN NOT MATCHED THEN INSERT (id_producto, nombre, precio, stock)
+    VALUES (s.id_producto, s.nombre, s.precio, s.stock);
+  END;
+
+  PROCEDURE refrescar_producto(p_producto_id NUMBER) IS
+    v_stock NUMBER;
+  BEGIN
+    SELECT NVL(SUM(stock),0)
+      INTO v_stock
+      FROM hr.stuffies_stock_talla
+     WHERE producto_id = p_producto_id;
+
+    UPDATE hr.stuffies_productos
+       SET stock = v_stock
+     WHERE producto_id = p_producto_id;
+
+    sync_row_producto(p_producto_id);
+  END;
+
+  PROCEDURE refrescar_todo IS
+  BEGIN
+    FOR r IN (SELECT producto_id FROM hr.stuffies_productos) LOOP
+      refrescar_producto(r.producto_id);
+    END LOOP;
+  END;
+END pkg_gestion_stock;
+/
+
+-------------------------------------------------------------------------------
+-- TRIGGER COMPUESTO (no hace COMMIT, evita "tabla mutando")
+-------------------------------------------------------------------------------
+CREATE OR REPLACE TRIGGER hr.trg_sst_aiud
+FOR INSERT OR UPDATE OR DELETE ON hr.stuffies_stock_talla
+COMPOUND TRIGGER
+  g_ids SYS.ODCINUMBERLIST := SYS.ODCINUMBERLIST();
+
+  PROCEDURE add_id(p_id NUMBER) IS
+  BEGIN
+    IF p_id IS NOT NULL THEN
+      g_ids.EXTEND; g_ids(g_ids.COUNT) := p_id;
+    END IF;
+  END;
+
+  AFTER EACH ROW IS
+  BEGIN
+    add_id(NVL(:NEW.producto_id, :OLD.producto_id));
+  END AFTER EACH ROW;
+
+  AFTER STATEMENT IS
+    v_total_stock NUMBER;
+  BEGIN
+    FOR r IN (SELECT DISTINCT COLUMN_VALUE AS producto_id FROM TABLE(g_ids)) LOOP
+      hr.pkg_gestion_stock.refrescar_producto(r.producto_id);
+
+      -- Notificación opcional (ignorar errores si no existe tabla)
+      BEGIN
+        SELECT NVL(SUM(stock),0) INTO v_total_stock
+        FROM hr.stuffies_stock_talla
+        WHERE producto_id = r.producto_id;
+
+        IF v_total_stock <= 2 THEN
+          INSERT INTO hr.stuffies_notificaciones
+            (notificacion_id, cliente_id, mensaje, tipo, fecha_notificacion, leida)
+          VALUES (
+            (SELECT NVL(MAX(notificacion_id),0)+1 FROM hr.stuffies_notificaciones),
+            NULL,
+            'Alerta: Stock bajo para producto ID '||r.producto_id,
+            'ALERTA_STOCK',
+            SYSDATE,
+            'N'
+          );
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL; END;
+    END LOOP;
+  END AFTER STATEMENT;
+END;
+/
+
+-------------------------------------------------------------------------------
+-- CARGA DE DATOS **SIN** DELETE: UPSERT con MERGE (evita ORA-02292 / ORA-00001)
+-- Deshabilitamos trigger durante la carga para que no dispare por cada fila
+-------------------------------------------------------------------------------
+ALTER TRIGGER hr.trg_sst_aiud DISABLE;
+
+-- === MERGE único de PRODUCTOS ===
+MERGE INTO hr.stuffies_productos p
+USING (
+  SELECT 1 AS producto_id, 'Hoodie Boxy Fit White Dice V2'        AS nombre, 39990 AS precio, 'polerones' AS categoria,
+         'https://stuffiesconcept.com/cdn/shop/files/WhiteDice1.png?v=1753404231&width=600'    AS imagen,
+         'https://stuffiesconcept.com/cdn/shop/files/WhiteDice2.png?v=1753404231&width=1426'   AS imagen_hover,
+         'Poleron Boxy Fit White Dice V2.'                 AS descripcion, 0 AS destacado, 0 AS stock FROM dual
+  UNION ALL SELECT 2, 'Star Player ''Blue Team'' T-Shirt', 10990, 'poleras',
+         'https://stuffiesconcept.com/cdn/shop/files/1_594f01e1-55e5-4516-b0af-d2befc1aa113.png?v=1748653006&width=600',
+         'https://stuffiesconcept.com/cdn/shop/files/2_221c9cfc-6049-4eb1-b7ec-3b19bd755c48.png?v=1748653006&width=600',
+         'La Star Player T-Shirt nace de la unión entre la nostalgia del fútbol clásico y la energía del streetwear actual.', 0, 0 FROM dual
+  UNION ALL SELECT 3, 'Stella Chroma Zip Hoodie', 55990, 'polerones',
+         'https://stuffiesconcept.com/cdn/shop/files/1_8ee3f1b2-2f8a-45ba-bb78-a2f4ba49c4d5.png?v=1756936574&width=600',
+         'https://stuffiesconcept.com/cdn/shop/files/2_1c0d6df0-c713-49a3-b2bd-b07d19c392ee.png?v=1756936574&width=600',
+         'Hoodie con cierre frontal y bolsillos.', 1, 0 FROM dual
+  UNION ALL SELECT 4, 'Stella Boxy-Slim White Tee', 22990, 'poleras',
+         'https://stuffiesconcept.com/cdn/shop/files/3_0f38dc89-f9f8-4998-be22-b2e0122e8816.png?v=1756936601&width=600',
+         'https://stuffiesconcept.com/cdn/shop/files/4_8a500939-3d78-4b9c-aaab-fc34db0d117d.png?v=1756936601&width=600',
+         'Camiseta blanca corte boxy-slim.', 0, 0 FROM dual
+  UNION ALL SELECT 5, 'Stella Boxy-Slim Black Tee', 15990, 'poleras',
+         'https://stuffiesconcept.com/cdn/shop/files/5.png?v=1756936590&width=493',
+         'https://stuffiesconcept.com/cdn/shop/files/6.png?v=1756936591&width=493',
+         'Polera boxy-slim fit negra', 1, 0 FROM dual
+  UNION ALL SELECT 6, 'Hoodie Boxy Fit Black Dice V2', 32990, 'polerones',
+         'https://stuffiesconcept.com/cdn/shop/files/RedDice1.png?v=1753404319&width=600',
+         'https://stuffiesconcept.com/cdn/shop/files/RedDice2.png?v=1753404319&width=600',
+         'Poleron Boxy Fit White Dice V2.', 1, 0 FROM dual
+  UNION ALL SELECT 7, 'Star Player ''Black Team'' t-shirt', 37990, 'poleras',
+         'https://stuffiesconcept.com/cdn/shop/files/3_f5bf3ad8-c122-436f-8eee-1483a3f383da.png?v=1748652948&width=600',
+         'https://stuffiesconcept.com/cdn/shop/files/4_b9bc3afc-97e9-4636-94f4-1a863738d755.png?v=1748652948&width=600',
+         'La Star Player T-Shirt nace de la unión entre la nostalgia del fútbol clásico y la energía del streetwear actual..', 1, 0 FROM dual
+  UNION ALL SELECT 8, 'Hoodie Boxy Fit Brown Dice V2.', 35990, 'polerones',
+         'https://stuffiesconcept.com/cdn/shop/files/PinkDice1.png?v=1753404299&width=600',
+         'https://stuffiesconcept.com/cdn/shop/files/PinkDice2.png?v=1753404299&width=600',
+         ' Poleron Boxy Fit Brown Dice V2.', 0, 0 FROM dual
+  UNION ALL SELECT 9, 'Pantalón Jeans Negro', 22990, 'pantalones',
+         'https://i.postimg.cc/85CnPzS6/920c48b5-ab8b-486d-8681-74fd494c0b6e.avif',
+         'https://i.postimg.cc/WjzNN7HP/b0435e27-d353-47fa-ade0-7ce8e83fc9b7.avif',
+         'Jeans negro con calce relaxed.', 0, 0 FROM dual
+  UNION ALL SELECT 10, 'Pantalón Jogger Gris', 19990, 'pantalones',
+         'https://img.kwcdn.com/product/fancy/50c868f6-9264-465b-8e4f-01332ba99b8d.jpg?imageView2/2/w/800/q/70/format/avif',
+         'https://img.kwcdn.com/product/fancy/642a3b78-e9e3-4b0a-b5f3-e897878511cc.jpg?imageView2/2/w/800/q/70/format/avif',
+         'Jogger gris, cintura elasticada y puño.', 0, 0 FROM dual
+  UNION ALL SELECT 11, 'Gorro Beanie Clásico', 9990, 'gorros',
+         'https://img.kwcdn.com/product/fancy/109264d1-93cb-4d8a-af2f-a2e0056f21dc.jpg?imageView2/2/w/800/q/70/format/avif',
+         'https://img.kwcdn.com/product/fancy/9b424f95-c691-49cf-9e1b-f2e97355cc98.jpg?imageView2/2/w/800/q/70/format/avif',
+         'Beanie de punto, unisex, ideal para invierno.', 0, 0 FROM dual
+) s
+ON (p.producto_id = s.producto_id)
+WHEN MATCHED THEN UPDATE SET
+  p.nombre = s.nombre,
+  p.precio = s.precio,
+  p.categoria = s.categoria,
+  p.imagen = s.imagen,
+  p.imagen_hover = s.imagen_hover,
+  p.descripcion = s.descripcion,
+  p.destacado = s.destacado
+WHEN NOT MATCHED THEN INSERT (producto_id,nombre,precio,categoria,imagen,imagen_hover,descripcion,destacado,stock)
+VALUES (s.producto_id,s.nombre,s.precio,s.categoria,s.imagen,s.imagen_hover,s.descripcion,s.destacado,s.stock);
+
+-- === MERGE único de STOCK POR TALLA ===
+MERGE INTO hr.stuffies_stock_talla t
+USING (
+  SELECT 1 AS producto_id, 'S'  AS talla, '3' AS stock FROM dual
+  UNION ALL SELECT 1, 'M', '5' FROM dual
+  UNION ALL SELECT 1, 'L', '2' FROM dual
+  UNION ALL SELECT 1, 'XL','0' FROM dual
+
+  UNION ALL SELECT 2, 'M', '8' FROM dual
+  UNION ALL SELECT 2, 'L', '4' FROM dual
+  UNION ALL SELECT 2, 'XL','1' FROM dual
+
+  UNION ALL SELECT 3, 'S', '2' FROM dual
+  UNION ALL SELECT 3, 'M', '3' FROM dual
+  UNION ALL SELECT 3, 'L', '3' FROM dual
+  UNION ALL SELECT 3, 'XL','2' FROM dual
+
+  UNION ALL SELECT 4, 'S', '0' FROM dual
+  UNION ALL SELECT 4, 'M', '6' FROM dual
+  UNION ALL SELECT 4, 'L', '6' FROM dual
+  UNION ALL SELECT 4, 'XL','2' FROM dual
+
+  UNION ALL SELECT 5, 'S', '5' FROM dual
+  UNION ALL SELECT 5, 'M', '5' FROM dual
+  UNION ALL SELECT 5, 'L', '5' FROM dual
+  UNION ALL SELECT 5, 'XL','5' FROM dual
+
+  UNION ALL SELECT 6, 'S', '0' FROM dual
+  UNION ALL SELECT 6, 'M', '1' FROM dual
+  UNION ALL SELECT 6, 'L', '0' FROM dual
+  UNION ALL SELECT 6, 'XL','0' FROM dual
+
+  UNION ALL SELECT 7, 'S', '2' FROM dual
+  UNION ALL SELECT 7, 'M', '2' FROM dual
+  UNION ALL SELECT 7, 'L', '2' FROM dual
+  UNION ALL SELECT 7, 'XL','2' FROM dual
+
+  UNION ALL SELECT 8, 'S', '4' FROM dual
+  UNION ALL SELECT 8, 'M', '4' FROM dual
+  UNION ALL SELECT 8, 'L', '0' FROM dual
+  UNION ALL SELECT 8, 'XL','0' FROM dual
+
+  UNION ALL SELECT 9,  '38','3' FROM dual
+  UNION ALL SELECT 9,  '40','3' FROM dual
+  UNION ALL SELECT 9,  '42','2' FROM dual
+  UNION ALL SELECT 9,  '44','1' FROM dual
+  UNION ALL SELECT 9,  '46','0' FROM dual
+  UNION ALL SELECT 9,  '48','0' FROM dual
+  UNION ALL SELECT 9,  '50','2' FROM dual
+  UNION ALL SELECT 9,  '52','2' FROM dual
+  UNION ALL SELECT 9,  '54','1' FROM dual
+
+  UNION ALL SELECT 10, '38','0' FROM dual
+  UNION ALL SELECT 10, '40','1' FROM dual
+  UNION ALL SELECT 10, '42','1' FROM dual
+  UNION ALL SELECT 10, '44','2' FROM dual
+  UNION ALL SELECT 10, '46','2' FROM dual
+  UNION ALL SELECT 10, '48','2' FROM dual
+  UNION ALL SELECT 10, '50','0' FROM dual
+  UNION ALL SELECT 10, '52','0' FROM dual
+  UNION ALL SELECT 10, '54','0' FROM dual
+
+  UNION ALL SELECT 11, '54','5' FROM dual
+  UNION ALL SELECT 11, '56','5' FROM dual
+  UNION ALL SELECT 11, '58','0' FROM dual
+  UNION ALL SELECT 11, '60','1' FROM dual
+) s
+ON (t.producto_id = s.producto_id AND t.talla = s.talla)
+WHEN MATCHED THEN UPDATE SET t.stock = TO_NUMBER(s.stock)
+WHEN NOT MATCHED THEN INSERT (producto_id,talla,stock)
+VALUES (s.producto_id, s.talla, TO_NUMBER(s.stock));
+
+COMMIT;
+
+ALTER TRIGGER hr.trg_sst_aiud ENABLE;
+
+-- Refrescar espejo (producto) con los totales actualizados
+BEGIN
+  hr.pkg_gestion_stock.refrescar_todo;
+END;
+/
+COMMIT;
+
+-------------------------------------------------------------------------------
+-- REPORTES (igual que los tuyos)
+-------------------------------------------------------------------------------
+PROMPT === REPORTE TABLA (ID, NOMBRE, STOCK TOTAL) ===
+SELECT id, RPAD(nombre,35) AS nombre, stock_total
+FROM hr.vw_reporte_stock_tabla
+WHERE id BETWEEN 1 AND 11
+ORDER BY id;
+
+PROMPT === REPORTE TEXTO (igual a DBMS_OUTPUT) ===
+SELECT linea FROM hr.vw_reporte_stock_texto
+ORDER BY ord, linea;
+
+PROMPT === VISTA CATALOGO (con tallas CSV) ===
+SELECT * FROM hr.vw_producto_tallas_csv
+WHERE id_producto BETWEEN 1 AND 11
+ORDER BY id_producto;
+
+SET DEFINE ON;
